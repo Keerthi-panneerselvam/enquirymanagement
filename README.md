@@ -169,3 +169,7 @@ Current system includes placeholders for:
 ---
 
 *This Wedding Decor Enquiry Manager represents a complete solution for small to medium-sized wedding decoration businesses looking to professionalize their client management process while maintaining simplicity and ease of use.*
+
+
+
+Twilio - Recovery - UY75X3EGHVLUK73Z13E3PC5W
