@@ -191,8 +191,8 @@ class NotificationSystem {
             <style id="notification-styles">
                 .notification-bell {
                     position: absolute;
-                    top: 30px;
-                    right: 30px;
+                    top: 20px;
+                    right: 20px;
                     background: rgba(255,255,255,0.2);
                     border: 2px solid rgba(255,255,255,0.3);
                     border-radius: 50%;
@@ -203,8 +203,8 @@ class NotificationSystem {
                     justify-content: center;
                     cursor: pointer;
                     transition: all 0.3s ease;
-                    position: relative;
                     font-size: 1.2rem;
+                    z-index: 10;
                 }
 
                 .notification-bell:hover {
