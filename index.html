@@ -5,6 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wedding Decor Enquiry Manager</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Feature Flags Configuration -->
+    <script>
+        // Feature Flags - Enable/Disable features here
+        window.FEATURE_FLAGS = {
+            NOTIFICATIONS_ENABLED: true,  // Set to false to disable notifications
+            ADVANCED_ANALYTICS: false,    // Future feature
+            EMAIL_INTEGRATION: false,     // Future feature
+            BULK_OPERATIONS: false        // Future feature
+        };
+    </script>
+    
+    <!-- Conditional loading of notification system -->
+    <script>
+        if (window.FEATURE_FLAGS.NOTIFICATIONS_ENABLED) {
+            // Load notification system
+            const script = document.createElement('script');
+            script.src = 'notification-system.js';  // Path to your notification system file
+            script.onerror = function() {
+                console.warn('⚠️ Notification system file not found. Running without notifications.');
+                window.FEATURE_FLAGS.NOTIFICATIONS_ENABLED = false;
+            };
+            document.head.appendChild(script);
+        }
+    </script>
+    
     <style>
         * {
             margin: 0;
@@ -33,6 +59,7 @@
             color: white;
             padding: 30px;
             text-align: center;
+            position: relative;
         }
 
         .header h1 {
@@ -45,6 +72,17 @@
             font-size: 1.1rem;
         }
 
+        .feature-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
         .main-content {
             padding: 30px;
         }
@@ -53,6 +91,7 @@
             display: flex;
             margin-bottom: 30px;
             border-bottom: 2px solid #f0f0f0;
+            flex-wrap: wrap;
         }
 
         .tab {
@@ -65,6 +104,7 @@
             color: #666;
             transition: all 0.3s ease;
             border-bottom: 3px solid transparent;
+            position: relative;
         }
 
         .tab.active {
@@ -278,6 +318,15 @@
             background: #dc3545;
         }
 
+        .notification.warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .notification.info {
+            background: #17a2b8;
+        }
+
         @keyframes slideIn {
             from {
                 transform: translateX(100%);
@@ -336,12 +385,24 @@
             .enquiry-actions {
                 justify-content: center;
             }
+
+            .tabs {
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .tab {
+                flex-shrink: 0;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
+            <div class="feature-indicator" id="feature-indicator">
+                🏗️ Loading features...
+            </div>
             <h1>💐 Wedding Decor Manager</h1>
             <p>Manage enquiries and follow-ups efficiently</p>
         </div>
@@ -451,33 +512,6 @@
         // Initialize Supabase client
         let supabaseClient;
         
-        // Wait for page to load before initializing Supabase
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeSupabase();
-            loadEnquiries();
-            setupEventListeners();
-            
-            // Set minimum date to today for follow-up
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('followup-date').min = today;
-            document.getElementById('wedding-date').min = today;
-        });
-
-        function initializeSupabase() {
-            try {
-                // Check if Supabase library is loaded
-                if (typeof window.supabase === 'undefined') {
-                    throw new Error('Supabase library not loaded from CDN');
-                }
-                
-                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                console.log('Supabase connected successfully!');
-            } catch (error) {
-                console.log('Supabase connection failed - using demo mode:', error.message);
-                supabaseClient = null;
-            }
-        }
-
         // Demo data for when Supabase is not configured
         let demoEnquiries = [
             {
@@ -492,7 +526,7 @@
                 manager: 'Priya Sharma',
                 status: 'new',
                 requirements: 'Traditional South Indian theme with marigold decorations',
-                followup_date: '2025-06-01',
+                followup_date: '2025-05-27', // Yesterday to trigger overdue notification
                 followup_details: [
                     {
                         date: '2025-05-15',
@@ -512,14 +546,14 @@
                 client_name: 'Anita & Vikram',
                 client_email: 'anita@email.com',
                 client_phone: '+91 87654 32109',
-                wedding_date: '2025-08-20',
+                wedding_date: '2025-06-04', // 7 days from now to trigger upcoming wedding notification
                 venue: 'Beach Resort Goa',
                 budget: 300000,
                 guest_count: 100,
                 manager: 'Rajesh Kumar',
-                status: 'contacted',
+                status: 'confirmed',
                 requirements: 'Beach theme with white and blue decorations',
-                followup_date: '2025-05-30',
+                followup_date: '2025-05-28', // Today to trigger due today notification
                 followup_details: [
                     {
                         date: '2025-05-18',
@@ -534,6 +568,88 @@
         // State management
         let enquiries = [];
         let currentTab = 'enquiries';
+
+        // Feature Flag Management
+        function updateFeatureIndicator() {
+            const indicator = document.getElementById('feature-indicator');
+            if (!indicator) return;
+
+            const enabledFeatures = Object.entries(window.FEATURE_FLAGS)
+                .filter(([key, value]) => value)
+                .map(([key, value]) => key.replace('_ENABLED', '').toLowerCase());
+
+            if (enabledFeatures.length === 0) {
+                indicator.textContent = '🎯 Core features only';
+            } else {
+                indicator.textContent = `✨ ${enabledFeatures.join(', ')}`;
+            }
+        }
+
+        // Enhanced enquiry highlighting function
+        window.highlightEnquiry = function(enquiryId) {
+            setTimeout(() => {
+                const enquiryCards = document.querySelectorAll('.enquiry-card');
+                enquiryCards.forEach((card, index) => {
+                    if (enquiries[index] && enquiries[index].id == enquiryId) {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        card.style.border = '3px solid #667eea';
+                        card.style.transform = 'scale(1.02)';
+                        setTimeout(() => {
+                            card.style.border = '';
+                            card.style.transform = '';
+                        }, 3000);
+                    }
+                });
+            }, 100);
+        };
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSupabase();
+            loadEnquiries();
+            setupEventListeners();
+            updateFeatureIndicator();
+            
+            // Set minimum date to today for follow-up
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('followup-date').min = today;
+            document.getElementById('wedding-date').min = today;
+
+            // Initialize notification system if enabled
+            if (window.FEATURE_FLAGS.NOTIFICATIONS_ENABLED) {
+                initializeNotificationSystem();
+            }
+        });
+
+        function initializeNotificationSystem() {
+            // Wait for notification system to load
+            const checkNotificationSystem = () => {
+                if (window.notificationSystem) {
+                    console.log('🔔 Initializing notification system...');
+                    window.notificationSystem.init({ enquiries: enquiries });
+                    updateFeatureIndicator();
+                } else {
+                    setTimeout(checkNotificationSystem, 100);
+                }
+            };
+            
+            setTimeout(checkNotificationSystem, 500);
+        }
+
+        function initializeSupabase() {
+            try {
+                // Check if Supabase library is loaded
+                if (typeof window.supabase === 'undefined') {
+                    throw new Error('Supabase library not loaded from CDN');
+                }
+                
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase connected successfully!');
+            } catch (error) {
+                console.log('Supabase connection failed - using demo mode:', error.message);
+                supabaseClient = null;
+            }
+        }
 
         function setupEventListeners() {
             document.getElementById('enquiry-form').addEventListener('submit', handleAddEnquiry);
@@ -557,12 +673,19 @@
                 renderEnquiries();
                 renderFollowups();
                 renderManagers();
+
+                // Update notification system with new enquiry data
+                if (window.FEATURE_FLAGS.NOTIFICATIONS_ENABLED && window.notificationSystem) {
+                    window.notificationSystem.updateEnquiries(enquiries);
+                }
+                
             } catch (error) {
                 console.error('Error loading enquiries:', error);
                 showNotification('Error loading enquiries', 'error');
                 enquiries = demoEnquiries;
                 renderEnquiries();
                 renderFollowups();
+                renderManagers();
             }
         }
 
@@ -764,7 +887,7 @@
                         <div>
                             <strong>${enquiry.client_name}</strong> - ${enquiry.status}
                             <br>
-                            <small>${enquiry.client_phone} | ${enquiry.client_email}</small>
+                            <small>${enquiry.client_phone} | ${enquiry.client_email} | Manager: ${enquiry.manager || 'Unassigned'}</small>
                         </div>
                         <div class="followup-date ${isOverdue(enquiry.followup_date) ? 'overdue' : ''}">
                             ${formatDate(enquiry.followup_date)}
@@ -809,6 +932,12 @@
                     enquiryData.id = Date.now();
                     enquiries.unshift(enquiryData);
                     demoEnquiries.unshift(enquiryData);
+                }
+
+                // Notify new enquiry if notifications enabled
+                if (window.FEATURE_FLAGS.NOTIFICATIONS_ENABLED && window.notificationSystem) {
+                    window.notificationSystem.notifyNewEnquiry(enquiryData);
+                    window.notificationSystem.updateEnquiries(enquiries);
                 }
 
                 e.target.reset();
@@ -887,8 +1016,9 @@
             // Handle update button click
             modal.querySelector('#update-btn').addEventListener('click', async () => {
                 const newStatus = statusSelect.value;
+                const oldStatus = enquiry.status;
                 
-                if (newStatus === enquiry.status) {
+                if (newStatus === oldStatus) {
                     modal.remove();
                     return;
                 }
@@ -904,6 +1034,13 @@
                     }
 
                     enquiry.status = newStatus;
+
+                    // Notify status change if notifications enabled
+                    if (window.FEATURE_FLAGS.NOTIFICATIONS_ENABLED && window.notificationSystem) {
+                        window.notificationSystem.notifyStatusChange(enquiry, oldStatus, newStatus);
+                        window.notificationSystem.updateEnquiries(enquiries);
+                    }
+
                     renderEnquiries();
                     renderManagers();
                     showNotification('Status updated successfully!', 'success');
@@ -1068,6 +1205,11 @@
                         enquiry.followup_date = nextFollowupDate;
                     }
 
+                    // Update notification system
+                    if (window.FEATURE_FLAGS.NOTIFICATIONS_ENABLED && window.notificationSystem) {
+                        window.notificationSystem.updateEnquiries(enquiries);
+                    }
+
                     renderEnquiries();
                     renderFollowups();
                     renderManagers();
@@ -1222,6 +1364,11 @@
                 enquiries = enquiries.filter(e => e.id !== id);
                 demoEnquiries = demoEnquiries.filter(e => e.id !== id);
                 
+                // Update notification system
+                if (window.FEATURE_FLAGS.NOTIFICATIONS_ENABLED && window.notificationSystem) {
+                    window.notificationSystem.updateEnquiries(enquiries);
+                }
+
                 renderEnquiries();
                 renderFollowups();
                 renderManagers();
@@ -1277,7 +1424,12 @@
         }
 
         // Auto-refresh follow-ups every hour
-        setInterval(renderFollowups, 3600000);
+        setInterval(() => {
+            renderFollowups();
+            if (window.FEATURE_FLAGS.NOTIFICATIONS_ENABLED && window.notificationSystem) {
+                window.notificationSystem.updateEnquiries(enquiries);
+            }
+        }, 3600000);
     </script>
 </body>
 </html>
