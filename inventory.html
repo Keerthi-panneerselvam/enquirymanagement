@@ -1,0 +1,836 @@
+<!-- Add this to your existing HTML file -->
+<!-- Insert this section after your existing tabs in the main-content div -->
+
+<!-- Add Inventory tab to existing tabs -->
+<div class="tabs">
+    <button class="tab active" onclick="showTab('enquiries')">All Enquiries</button>
+    <button class="tab" onclick="showTab('add-enquiry')">Add New Enquiry</button>
+    <button class="tab" onclick="showTab('followups')">Follow-ups Due</button>
+    <button class="tab" onclick="showTab('managers')">By Manager</button>
+    <!-- NEW: Add Inventory tab -->
+    <button class="tab" onclick="showTab('inventory')">📦 Inventory</button>
+</div>
+
+<!-- NEW: Inventory Tab Content -->
+<div id="inventory" class="tab-content">
+    <div style="margin-bottom: 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+            <h2 style="color: #333; margin: 0;">📦 Inventory Management</h2>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="showInventoryStats()">📊 Stats</button>
+                <button class="btn btn-primary" onclick="showAddItemModal()">➕ Add New Item</button>
+            </div>
+        </div>
+        
+        <!-- Simple Stats Cards -->
+        <div id="inventory-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <div class="stat-card">
+                <div class="stat-number" id="total-items">0</div>
+                <div class="stat-label">Total Items</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="available-items">0</div>
+                <div class="stat-label">Available Now</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="booked-items">0</div>
+                <div class="stat-label">Currently Booked</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-value">₹0</div>
+                <div class="stat-label">Total Value</div>
+            </div>
+        </div>
+        
+        <!-- Search and Filter -->
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+            <input type="text" id="inventory-search" placeholder="Search items..." style="flex: 1; min-width: 250px; padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px;">
+            <select id="category-filter" style="padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px;">
+                <option value="">All Categories</option>
+                <option value="Traditional">Traditional</option>
+                <option value="Furniture">Furniture</option>
+                <option value="Flowers">Flowers</option>
+                <option value="Backdrop">Backdrop</option>
+                <option value="Lighting">Lighting</option>
+                <option value="Decoration">Decoration</option>
+                <option value="Props">Props</option>
+                <option value="Structure">Structure</option>
+            </select>
+            <button class="btn btn-secondary" onclick="loadInventoryItems()">🔄 Refresh</button>
+        </div>
+        
+        <!-- Items Grid -->
+        <div id="inventory-items-grid" class="loading">
+            Loading inventory items...
+        </div>
+    </div>
+</div>
+
+<!-- Add this section to your existing "Add New Enquiry" form -->
+<!-- Insert this after the existing form fields, before the submit button -->
+<div class="form-group" style="grid-column: 1 / -1;">
+    <label for="inventory-requirements">📦 Inventory Requirements (Optional)</label>
+    <div id="inventory-section" style="border: 2px solid #e1e5e9; border-radius: 8px; padding: 20px; background: #f8f9fa;">
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <input type="text" id="item-search" placeholder="Search items to add..." style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <button type="button" class="btn btn-secondary" onclick="searchInventoryItems()">🔍 Search</button>
+        </div>
+        
+        <div id="search-results" style="display: none; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; background: white; margin-bottom: 15px;"></div>
+        
+        <div id="selected-items" style="margin-bottom: 15px;">
+            <h4 style="margin-bottom: 10px; color: #333;">Selected Items:</h4>
+            <div id="selected-items-list">
+                <p style="color: #666; font-style: italic;">No items selected</p>
+            </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #ddd;">
+            <span style="font-weight: 600; color: #333;">Estimated Total:</span>
+            <span id="estimated-total" style="font-weight: 700; color: #667eea; font-size: 1.2rem;">₹0</span>
+        </div>
+    </div>
+</div>
+
+<!-- Add these styles to your existing CSS -->
+<style>
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        text-align: center;
+        border-left: 4px solid #667eea;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .inventory-item-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        border-left: 4px solid #667eea;
+    }
+    
+    .inventory-item-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+    
+    .item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+    
+    .item-name {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .item-category {
+        font-size: 0.9rem;
+        color: #667eea;
+        font-weight: 600;
+    }
+    
+    .item-status {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .status-available {
+        background: #e8f5e8;
+        color: #388e3c;
+    }
+    
+    .status-partial {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+    
+    .status-unavailable {
+        background: #ffebef;
+        color: #d32f2f;
+    }
+    
+    .item-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .item-detail {
+        text-align: center;
+        padding: 8px;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+    
+    .item-detail-value {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 2px;
+    }
+    
+    .item-detail-label {
+        font-size: 0.8rem;
+        color: #666;
+        text-transform: uppercase;
+    }
+    
+    .item-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .item-actions .btn {
+        flex: 1;
+        min-width: 80px;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .selected-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        border: 1px solid #e1e5e9;
+    }
+    
+    .selected-item-info {
+        flex: 1;
+    }
+    
+    .selected-item-name {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 2px;
+    }
+    
+    .selected-item-details {
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .selected-item-cost {
+        font-weight: 600;
+        color: #667eea;
+        margin-right: 10px;
+    }
+    
+    .search-result-item {
+        padding: 10px 15px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .search-result-item:hover {
+        background: #f5f5f5;
+    }
+    
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+    
+    @media (max-width: 768px) {
+        .inventory-item-card {
+            padding: 15px;
+        }
+        
+        .item-details {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .item-actions {
+            flex-direction: column;
+        }
+        
+        .item-actions .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<script>
+    // Add to your existing JavaScript
+    
+    // Inventory management variables
+    let inventoryItems = [];
+    let selectedInventoryItems = [];
+    let currentEnquiryItems = [];
+    
+    // Add to your existing DOMContentLoaded event listener
+    document.addEventListener('DOMContentLoaded', function() {
+        // ... existing initialization code ...
+        
+        // Initialize inventory search
+        const inventorySearch = document.getElementById('inventory-search');
+        if (inventorySearch) {
+            inventorySearch.addEventListener('input', filterInventoryItems);
+        }
+        
+        const categoryFilter = document.getElementById('category-filter');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', filterInventoryItems);
+        }
+        
+        const itemSearch = document.getElementById('item-search');
+        if (itemSearch) {
+            itemSearch.addEventListener('input', debounce(searchInventoryItems, 300));
+        }
+    });
+    
+    // Update your existing showTab function to handle inventory
+    function showTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab').forEach((el, idx) => {
+            el.classList.toggle('active', el.textContent.replace(/\s.*/, '').toLowerCase().replace('📦', '').trim() === tab.replace('-', ''));
+        });
+        document.querySelectorAll('.tab-content').forEach(el => {
+            el.classList.remove('active');
+        });
+        document.getElementById(tab).classList.add('active');
+        
+        // Load inventory when tab is shown
+        if (tab === 'inventory') {
+            loadInventoryItems();
+            loadInventoryStats();
+        }
+    }
+    
+    // Load inventory items
+    async function loadInventoryItems() {
+        try {
+            if (supabaseClient && currentUser) {
+                const { data, error } = await supabaseClient
+                    .from('inventory_items')
+                    .select('*')
+                    .eq('status', 'active')
+                    .order('name');
+                
+                if (error) throw error;
+                inventoryItems = data || [];
+            } else {
+                // Demo data
+                inventoryItems = [
+                    {
+                        id: 1,
+                        name: 'Mandap Decoration Set',
+                        category: 'Traditional',
+                        quantity: 2,
+                        daily_price: 5000,
+                        status: 'active',
+                        notes: 'Complete traditional mandap with flowers and draping'
+                    },
+                    {
+                        id: 2,
+                        name: 'Wedding Chairs (Set of 10)',
+                        category: 'Furniture',
+                        quantity: 20,
+                        daily_price: 500,
+                        status: 'active',
+                        notes: 'Elegant white wedding chairs'
+                    },
+                    {
+                        id: 3,
+                        name: 'Flower Bouquets',
+                        category: 'Flowers',
+                        quantity: 15,
+                        daily_price: 800,
+                        status: 'active',
+                        notes: 'Bridal and bridesmaid bouquets'
+                    }
+                ];
+            }
+            
+            renderInventoryItems();
+        } catch (error) {
+            console.error('Error loading inventory:', error);
+            showNotification('Error loading inventory items', 'error');
+        }
+    }
+    
+    // Render inventory items
+    function renderInventoryItems() {
+        const container = document.getElementById('inventory-items-grid');
+        
+        if (inventoryItems.length === 0) {
+            container.innerHTML = '<p class="loading">No inventory items found. Add your first item!</p>';
+            return;
+        }
+        
+        const filteredItems = getFilteredItems();
+        
+        container.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                ${filteredItems.map(item => `
+                    <div class="inventory-item-card">
+                        <div class="item-header">
+                            <div>
+                                <div class="item-name">${item.name}</div>
+                                <div class="item-category">${item.category}</div>
+                            </div>
+                            <div class="item-status ${getItemStatusClass(item)}">
+                                ${getItemStatusText(item)}
+                            </div>
+                        </div>
+                        
+                        <div class="item-details">
+                            <div class="item-detail">
+                                <div class="item-detail-value">${item.quantity}</div>
+                                <div class="item-detail-label">Total Qty</div>
+                            </div>
+                            <div class="item-detail">
+                                <div class="item-detail-value">${item.quantity}</div>
+                                <div class="item-detail-label">Available</div>
+                            </div>
+                            <div class="item-detail">
+                                <div class="item-detail-value">₹${item.daily_price}</div>
+                                <div class="item-detail-label">Per Day</div>
+                            </div>
+                        </div>
+                        
+                        ${item.notes ? `<div style="margin-bottom: 15px; color: #666; font-size: 0.9rem;">${item.notes}</div>` : ''}
+                        
+                        <div class="item-actions">
+                            <button class="btn btn-secondary" onclick="editInventoryItem(${item.id})">Edit</button>
+                            <button class="btn btn-secondary" onclick="checkItemAvailability(${item.id})">Check Dates</button>
+                            <button class="btn btn-primary" onclick="quickBookItem(${item.id})">Quick Book</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    // Filter inventory items
+    function getFilteredItems() {
+        const search = document.getElementById('inventory-search')?.value.toLowerCase() || '';
+        const categoryFilter = document.getElementById('category-filter')?.value || '';
+        
+        return inventoryItems.filter(item => {
+            const matchesSearch = item.name.toLowerCase().includes(search) || 
+                                item.category.toLowerCase().includes(search) ||
+                                (item.notes && item.notes.toLowerCase().includes(search));
+            const matchesCategory = !categoryFilter || item.category === categoryFilter;
+            
+            return matchesSearch && matchesCategory;
+        });
+    }
+    
+    function filterInventoryItems() {
+        renderInventoryItems();
+    }
+    
+    // Get item status for display
+    function getItemStatusClass(item) {
+        if (item.quantity > 5) return 'status-available';
+        if (item.quantity > 0) return 'status-partial';
+        return 'status-unavailable';
+    }
+    
+    function getItemStatusText(item) {
+        if (item.quantity > 5) return 'Available';
+        if (item.quantity > 0) return 'Limited';
+        return 'Unavailable';
+    }
+    
+    // Load inventory statistics
+    async function loadInventoryStats() {
+        try {
+            let stats = {
+                totalItems: 0,
+                availableItems: 0,
+                bookedItems: 0,
+                totalValue: 0
+            };
+            
+            if (supabaseClient && currentUser) {
+                // Get basic stats from database
+                const { data: items } = await supabaseClient
+                    .from('inventory_items')
+                    .select('quantity, daily_price')
+                    .eq('status', 'active');
+                
+                if (items) {
+                    stats.totalItems = items.length;
+                    stats.availableItems = items.reduce((sum, item) => sum + item.quantity, 0);
+                    stats.totalValue = items.reduce((sum, item) => sum + (item.quantity * item.daily_price), 0);
+                }
+            } else {
+                // Demo stats
+                stats = {
+                    totalItems: inventoryItems.length,
+                    availableItems: inventoryItems.reduce((sum, item) => sum + item.quantity, 0),
+                    bookedItems: 12,
+                    totalValue: 245000
+                };
+            }
+            
+            // Update stats display
+            document.getElementById('total-items').textContent = stats.totalItems;
+            document.getElementById('available-items').textContent = stats.availableItems;
+            document.getElementById('booked-items').textContent = stats.bookedItems;
+            document.getElementById('total-value').textContent = `₹${stats.totalValue.toLocaleString()}`;
+            
+        } catch (error) {
+            console.error('Error loading stats:', error);
+        }
+    }
+    
+    // Show add item modal
+    function showAddItemModal() {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        `;
+        
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            min-width: 400px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+        `;
+        
+        modalContent.innerHTML = `
+            <h3 style="margin-bottom: 20px; color: #333;">Add New Inventory Item</h3>
+            <form id="add-item-form">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Item Name *</label>
+                    <input type="text" id="item-name" required style="width: 100%; padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px;">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Category *</label>
+                    <select id="item-category" required style="width: 100%; padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px;">
+                        <option value="">Select Category</option>
+                        <option value="Traditional">Traditional</option>
+                        <option value="Furniture">Furniture</option>
+                        <option value="Flowers">Flowers</option>
+                        <option value="Backdrop">Backdrop</option>
+                        <option value="Lighting">Lighting</option>
+                        <option value="Decoration">Decoration</option>
+                        <option value="Props">Props</option>
+                        <option value="Structure">Structure</option>
+                    </select>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Quantity *</label>
+                        <input type="number" id="item-quantity" required min="1" value="1" style="width: 100%; padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Daily Price (₹) *</label>
+                        <input type="number" id="item-price" required min="0" step="0.01" style="width: 100%; padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px;">
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Notes</label>
+                    <textarea id="item-notes" rows="3" style="width: 100%; padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px; resize: vertical;"></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Add Item</button>
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                </div>
+            </form>
+        `;
+        
+        modal.className = 'modal-overlay';
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+        
+        // Handle form submission
+        document.getElementById('add-item-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const itemData = {
+                name: document.getElementById('item-name').value,
+                category: document.getElementById('item-category').value,
+                quantity: parseInt(document.getElementById('item-quantity').value),
+                daily_price: parseFloat(document.getElementById('item-price').value),
+                notes: document.getElementById('item-notes').value,
+                status: 'active',
+                user_id: currentUser?.id
+            };
+            
+            try {
+                if (supabaseClient && currentUser) {
+                    const { data, error } = await supabaseClient
+                        .from('inventory_items')
+                        .insert([itemData])
+                        .select();
+                    
+                    if (error) throw error;
+                    showNotification('Item added successfully!', 'success');
+                } else {
+                    // Demo mode
+                    itemData.id = Date.now();
+                    inventoryItems.push(itemData);
+                    showNotification('Demo: Item added successfully!', 'success');
+                }
+                
+                modal.remove();
+                loadInventoryItems();
+                loadInventoryStats();
+                
+            } catch (error) {
+                console.error('Error adding item:', error);
+                showNotification('Error adding item', 'error');
+            }
+        });
+        
+        // Focus first input
+        document.getElementById('item-name').focus();
+    }
+    
+    // Search inventory items for enquiry form
+    function searchInventoryItems() {
+        const searchTerm = document.getElementById('item-search').value.toLowerCase();
+        const resultsContainer = document.getElementById('search-results');
+        
+        if (searchTerm.length < 2) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+        
+        const filteredItems = inventoryItems.filter(item => 
+            item.name.toLowerCase().includes(searchTerm) ||
+            item.category.toLowerCase().includes(searchTerm)
+        );
+        
+        if (filteredItems.length === 0) {
+            resultsContainer.innerHTML = '<div style="padding: 10px; text-align: center; color: #666;">No items found</div>';
+        } else {
+            resultsContainer.innerHTML = filteredItems.map(item => `
+                <div class="search-result-item" onclick="addItemToEnquiry(${item.id})">
+                    <div>
+                        <div style="font-weight: 600;">${item.name}</div>
+                        <div style="font-size: 0.9rem; color: #666;">${item.category} • ₹${item.daily_price}/day • ${item.quantity} available</div>
+                    </div>
+                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;">Add</button>
+                </div>
+            `).join('');
+        }
+        
+        resultsContainer.style.display = 'block';
+    }
+    
+    // Add item to enquiry
+    function addItemToEnquiry(itemId) {
+        const item = inventoryItems.find(i => i.id === itemId);
+        if (!item) return;
+        
+        // Check if already added
+        const existingItem = selectedInventoryItems.find(i => i.id === itemId);
+        if (existingItem) {
+            showNotification('Item already added', 'warning');
+            return;
+        }
+        
+        // Add to selected items
+        selectedInventoryItems.push({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            daily_price: item.daily_price,
+            quantity: 1,
+            days: 1
+        });
+        
+        updateSelectedItemsDisplay();
+        document.getElementById('item-search').value = '';
+        document.getElementById('search-results').style.display = 'none';
+    }
+    
+    // Update selected items display
+    function updateSelectedItemsDisplay() {
+        const container = document.getElementById('selected-items-list');
+        
+        if (selectedInventoryItems.length === 0) {
+            container.innerHTML = '<p style="color: #666; font-style: italic;">No items selected</p>';
+            document.getElementById('estimated-total').textContent = '₹0';
+            return;
+        }
+        
+        container.innerHTML = selectedInventoryItems.map(item => `
+            <div class="selected-item">
+                <div class="selected-item-info">
+                    <div class="selected-item-name">${item.name}</div>
+                    <div class="selected-item-details">
+                        <input type="number" min="1" max="10" value="${item.quantity}" 
+                               onchange="updateItemQuantity(${item.id}, this.value)"
+                               style="width: 60px; margin-right: 5px;"> qty ×
+                        <input type="number" min="1" max="30" value="${item.days}" 
+                               onchange="updateItemDays(${item.id}, this.value)"
+                               style="width: 60px; margin: 0 5px;"> days
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span class="selected-item-cost">₹${(item.daily_price * item.quantity * item.days).toLocaleString()}</span>
+                    <button onclick="removeItemFromEnquiry(${item.id})" style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.2rem;">✕</button>
+                </div>
+            </div>
+        `).join('');
+        
+        updateEstimatedTotal();
+    }
+    
+    // Update item quantity
+    function updateItemQuantity(itemId, quantity) {
+        const item = selectedInventoryItems.find(i => i.id === itemId);
+        if (item) {
+            item.quantity = parseInt(quantity);
+            updateEstimatedTotal();
+        }
+    }
+    
+    // Update item days
+    function updateItemDays(itemId, days) {
+        const item = selectedInventoryItems.find(i => i.id === itemId);
+        if (item) {
+            item.days = parseInt(days);
+            updateEstimatedTotal();
+        }
+    }
+    
+    // Remove item from enquiry
+    function removeItemFromEnquiry(itemId) {
+        selectedInventoryItems = selectedInventoryItems.filter(i => i.id !== itemId);
+        updateSelectedItemsDisplay();
+    }
+    
+    // Update estimated total
+    function updateEstimatedTotal() {
+        const total = selectedInventoryItems.reduce((sum, item) => 
+            sum + (item.daily_price * item.quantity * item.days), 0);
+        document.getElementById('estimated-total').textContent = `₹${total.toLocaleString()}`;
+    }
+    
+    // Utility function for debouncing
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // Enhanced enquiry form submission to include inventory
+    const originalHandleAddEnquiry = handleAddEnquiry;
+    handleAddEnquiry = async function(e) {
+        e.preventDefault();
+        
+        // Call original function first
+        await originalHandleAddEnquiry.call(this, e);
+        
+        // If we have selected items and the enquiry was successful, save the inventory bookings
+        if (selectedInventoryItems.length > 0 && enquiries.length > 0) {
+            const newEnquiry = enquiries[0]; // Most recently added enquiry
+            
+            try {
+                const weddingDate = new FormData(e.target).get('weddingDate');
+                
+                for (const item of selectedInventoryItems) {
+                    const bookingData = {
+                        enquiry_id: newEnquiry.id,
+                        item_id: item.id,
+                        item_name: item.name,
+                        quantity: item.quantity,
+                        start_date: weddingDate || new Date().toISOString().split('T')[0],
+                        end_date: weddingDate || new Date().toISOString().split('T')[0],
+                        daily_rate: item.daily_price,
+                        total_cost: item.daily_price * item.quantity * item.days,
+                        status: 'booked',
+                        notes: `Auto-booked with enquiry for ${newEnquiry.client_name}`,
+                        user_id: currentUser?.id
+                    };
+                    
+                    if (supabaseClient && currentUser) {
+                        const { error } = await supabaseClient
+                            .from('item_bookings')
+                            .insert([bookingData]);
+                        
+                        if (error) throw error;
+                    }
+                }
+                
+                showNotification('Enquiry and inventory bookings saved!', 'success');
+                
+            } catch (error) {
+                console.error('Error saving inventory bookings:', error);
+                showNotification('Enquiry saved, but inventory booking failed', 'warning');
+            }
+            
+            // Clear selected items
+            selectedInventoryItems = [];
+            updateSelectedItemsDisplay();
+        }
+    };
+    
+    // Quick functions for item actions
+    function editInventoryItem(itemId) {
+        showNotification('Edit functionality coming soon!', 'info');
+    }
+    
+    function checkItemAvailability(itemId) {
+        showNotification('Availability check coming soon!', 'info');
+    }
+    
+    function quickBookItem(itemId) {
+        showNotification('Quick book functionality coming soon!', 'info');
+    }
+    
+    function showInventoryStats() {
+        showNotification('Detailed stats coming soon!', 'info');
+    }
+</script>
