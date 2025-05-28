@@ -351,6 +351,7 @@
                 <button class="tab active" onclick="showTab('enquiries')">All Enquiries</button>
                 <button class="tab" onclick="showTab('add-enquiry')">Add New Enquiry</button>
                 <button class="tab" onclick="showTab('followups')">Follow-ups Due</button>
+                <button class="tab" onclick="showTab('managers')">By Manager</button>
             </div>
 
             <!-- Enquiries Tab -->
@@ -393,6 +394,17 @@
                             <input type="number" id="guest-count" name="guestCount" min="0">
                         </div>
                         <div class="form-group">
+                            <label for="manager">Manager *</label>
+                            <select id="manager" name="manager" required>
+                                <option value="">Select Manager</option>
+                                <option value="Rajesh Kumar">Rajesh Kumar</option>
+                                <option value="Priya Sharma">Priya Sharma</option>
+                                <option value="Amit Patel">Amit Patel</option>
+                                <option value="Sneha Reddy">Sneha Reddy</option>
+                                <option value="Vikram Singh">Vikram Singh</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label for="status">Status</label>
                             <select id="status" name="status">
                                 <option value="new">New</option>
@@ -419,6 +431,13 @@
             <div id="followups" class="tab-content">
                 <div id="followups-list" class="loading">
                     Loading follow-ups...
+                </div>
+            </div>
+
+            <!-- Managers Tab -->
+            <div id="managers" class="tab-content">
+                <div id="managers-list" class="loading">
+                    Loading manager assignments...
                 </div>
             </div>
         </div>
@@ -470,6 +489,7 @@
                 venue: 'Grand Palace Hotel',
                 budget: 200000,
                 guest_count: 150,
+                manager: 'Priya Sharma',
                 status: 'new',
                 requirements: 'Traditional South Indian theme with marigold decorations',
                 followup_date: '2025-06-01',
@@ -496,6 +516,7 @@
                 venue: 'Beach Resort Goa',
                 budget: 300000,
                 guest_count: 100,
+                manager: 'Rajesh Kumar',
                 status: 'contacted',
                 requirements: 'Beach theme with white and blue decorations',
                 followup_date: '2025-05-30',
@@ -535,6 +556,7 @@
                 
                 renderEnquiries();
                 renderFollowups();
+                renderManagers();
             } catch (error) {
                 console.error('Error loading enquiries:', error);
                 showNotification('Error loading enquiries', 'error');
@@ -580,6 +602,10 @@
                             <span class="detail-value">${enquiry.venue || 'Not specified'}</span>
                         </div>
                         <div class="detail-item">
+                            <span class="detail-label">Manager</span>
+                            <span class="detail-value">${enquiry.manager || 'Not assigned'}</span>
+                        </div>
+                        <div class="detail-item">
                             <span class="detail-label">Budget</span>
                             <span class="detail-value">${enquiry.budget ? '₹' + enquiry.budget.toLocaleString() : 'Not specified'}</span>
                         </div>
@@ -611,6 +637,107 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        function renderManagers() {
+            const container = document.getElementById('managers-list');
+            
+            if (enquiries.length === 0) {
+                container.innerHTML = '<p class="loading">No enquiries found.</p>';
+                return;
+            }
+
+            // Group enquiries by manager
+            const managerGroups = {};
+            enquiries.forEach(enquiry => {
+                const manager = enquiry.manager || 'Unassigned';
+                if (!managerGroups[manager]) {
+                    managerGroups[manager] = [];
+                }
+                managerGroups[manager].push(enquiry);
+            });
+
+            let managersHtml = '';
+            
+            Object.keys(managerGroups).sort().forEach(manager => {
+                const enquiriesForManager = managerGroups[manager];
+                const statusCounts = {
+                    new: enquiriesForManager.filter(e => e.status === 'new').length,
+                    contacted: enquiriesForManager.filter(e => e.status === 'contacted').length,
+                    quoted: enquiriesForManager.filter(e => e.status === 'quoted').length,
+                    confirmed: enquiriesForManager.filter(e => e.status === 'confirmed').length,
+                    completed: enquiriesForManager.filter(e => e.status === 'completed').length
+                };
+
+                managersHtml += `
+                    <div style="
+                        background: #f8f9fa;
+                        border-radius: 12px;
+                        padding: 20px;
+                        margin-bottom: 20px;
+                        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="color: #333; margin: 0;">${manager === 'Unassigned' ? '⚠️ ' + manager : '👤 ' + manager}</h3>
+                            <span style="
+                                background: #667eea;
+                                color: white;
+                                padding: 5px 12px;
+                                border-radius: 20px;
+                                font-size: 0.9rem;
+                                font-weight: 600;
+                            ">${enquiriesForManager.length} enquiries</span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                            <div style="text-align: center; padding: 10px; background: #e3f2fd; border-radius: 8px;">
+                                <div style="font-size: 1.5rem; font-weight: 700; color: #1976d2;">${statusCounts.new}</div>
+                                <div style="font-size: 0.8rem; color: #666; text-transform: uppercase;">New</div>
+                            </div>
+                            <div style="text-align: center; padding: 10px; background: #fff3e0; border-radius: 8px;">
+                                <div style="font-size: 1.5rem; font-weight: 700; color: #f57c00;">${statusCounts.contacted}</div>
+                                <div style="font-size: 0.8rem; color: #666; text-transform: uppercase;">Contacted</div>
+                            </div>
+                            <div style="text-align: center; padding: 10px; background: #f3e5f5; border-radius: 8px;">
+                                <div style="font-size: 1.5rem; font-weight: 700; color: #7b1fa2;">${statusCounts.quoted}</div>
+                                <div style="font-size: 0.8rem; color: #666; text-transform: uppercase;">Quoted</div>
+                            </div>
+                            <div style="text-align: center; padding: 10px; background: #e8f5e8; border-radius: 8px;">
+                                <div style="font-size: 1.5rem; font-weight: 700; color: #388e3c;">${statusCounts.confirmed}</div>
+                                <div style="font-size: 0.8rem; color: #666; text-transform: uppercase;">Confirmed</div>
+                            </div>
+                            <div style="text-align: center; padding: 10px; background: #e0e0e0; border-radius: 8px;">
+                                <div style="font-size: 1.5rem; font-weight: 700; color: #616161;">${statusCounts.completed}</div>
+                                <div style="font-size: 0.8rem; color: #666; text-transform: uppercase;">Completed</div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; gap: 10px;">
+                            ${enquiriesForManager.map(enquiry => `
+                                <div style="
+                                    background: white;
+                                    padding: 15px;
+                                    border-radius: 8px;
+                                    border-left: 4px solid #667eea;
+                                    display: flex;
+                                    justify-content: space-between;
+                                    align-items: center;
+                                ">
+                                    <div>
+                                        <div style="font-weight: 600; color: #333; margin-bottom: 5px;">${enquiry.client_name}</div>
+                                        <div style="font-size: 0.9rem; color: #666;">
+                                            ${enquiry.client_phone} | ${enquiry.wedding_date ? formatDate(enquiry.wedding_date) : 'Date TBD'}
+                                        </div>
+                                    </div>
+                                    <div class="status-badge status-${enquiry.status}">${enquiry.status}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = managersHtml;
         }
 
         function renderFollowups() {
@@ -660,6 +787,7 @@
                 venue: formData.get('venue') || null,
                 budget: parseInt(formData.get('budget')) || null,
                 guest_count: parseInt(formData.get('guestCount')) || null,
+                manager: formData.get('manager'),
                 status: formData.get('status'),
                 requirements: formData.get('requirements') || null,
                 followup_date: formData.get('followupDate') || null,
@@ -687,6 +815,7 @@
                 showNotification('Enquiry added successfully!', 'success');
                 renderEnquiries();
                 renderFollowups();
+                renderManagers();
                 showTab('enquiries');
             } catch (error) {
                 console.error('Error adding enquiry:', error);
@@ -776,6 +905,7 @@
 
                     enquiry.status = newStatus;
                     renderEnquiries();
+                    renderManagers();
                     showNotification('Status updated successfully!', 'success');
                     modal.remove();
                 } catch (error) {
@@ -940,6 +1070,7 @@
 
                     renderEnquiries();
                     renderFollowups();
+                    renderManagers();
                     showNotification('Follow-up added successfully!', 'success');
                     modal.remove();
                 } catch (error) {
@@ -1093,6 +1224,7 @@
                 
                 renderEnquiries();
                 renderFollowups();
+                renderManagers();
                 showNotification('Enquiry deleted successfully!', 'success');
             } catch (error) {
                 console.error('Error deleting enquiry:', error);
