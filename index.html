@@ -177,7 +177,7 @@
 
         .enquiry-header {
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
         }
@@ -473,6 +473,18 @@
                 status: 'new',
                 requirements: 'Traditional South Indian theme with marigold decorations',
                 followup_date: '2025-06-01',
+                followup_details: [
+                    {
+                        date: '2025-05-15',
+                        details: 'Initial consultation - discussed venue layout and flower preferences. Client prefers marigolds and roses.',
+                        created_at: '2025-05-15T10:00:00Z'
+                    },
+                    {
+                        date: '2025-05-20',
+                        details: 'Shared design samples via WhatsApp. Client loved the mandap design with traditional draping.',
+                        created_at: '2025-05-20T14:30:00Z'
+                    }
+                ],
                 created_at: '2025-05-20T10:00:00Z'
             },
             {
@@ -487,6 +499,13 @@
                 status: 'contacted',
                 requirements: 'Beach theme with white and blue decorations',
                 followup_date: '2025-05-30',
+                followup_details: [
+                    {
+                        date: '2025-05-18',
+                        details: 'Site visit completed. Discussed logistics for beach setup and weather contingency plans.',
+                        created_at: '2025-05-18T16:00:00Z'
+                    }
+                ],
                 created_at: '2025-05-18T14:30:00Z'
             }
         ];
@@ -587,6 +606,7 @@
                     <div class="enquiry-actions">
                         <button class="btn btn-secondary" onclick="updateStatus(${enquiry.id})">Update Status</button>
                         <button class="btn btn-secondary" onclick="addFollowup(${enquiry.id})">Add Follow-up</button>
+                        <button class="btn btn-secondary" onclick="viewFollowups(${enquiry.id})">View Follow-ups (${(enquiry.followup_details || []).length})</button>
                         <button class="btn btn-danger" onclick="deleteEnquiry(${enquiry.id})">Delete</button>
                     </div>
                 </div>
@@ -643,6 +663,7 @@
                 status: formData.get('status'),
                 requirements: formData.get('requirements') || null,
                 followup_date: formData.get('followupDate') || null,
+                followup_details: [],
                 created_at: new Date().toISOString()
             };
 
@@ -789,27 +810,269 @@
             const enquiry = enquiries.find(e => e.id === id);
             if (!enquiry) return;
 
-            const followupDate = prompt('Enter follow-up date (YYYY-MM-DD):', enquiry.followup_date || '');
-            if (!followupDate) return;
+            // Create a modal for follow-up
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            `;
 
-            try {
-                if (supabaseClient) {
-                    const { error } = await supabaseClient
-                        .from('enquiries')
-                        .update({ followup_date: followupDate })
-                        .eq('id', id);
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                min-width: 400px;
+                max-width: 500px;
+                text-align: left;
+            `;
 
-                    if (error) throw error;
+            const today = new Date().toISOString().split('T')[0];
+
+            modalContent.innerHTML = `
+                <h3 style="margin-bottom: 20px; color: #333; text-align: center;">Add Follow-up for ${enquiry.client_name}</h3>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Follow-up Date:</label>
+                    <input type="date" id="followup-date-input" value="${today}" style="
+                        width: 100%; 
+                        padding: 12px; 
+                        border: 2px solid #e1e5e9; 
+                        border-radius: 8px; 
+                        font-size: 1rem;
+                    ">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Discussion Details:</label>
+                    <textarea id="followup-details-input" placeholder="What was discussed during this follow-up..." style="
+                        width: 100%; 
+                        padding: 12px; 
+                        border: 2px solid #e1e5e9; 
+                        border-radius: 8px; 
+                        font-size: 1rem;
+                        min-height: 100px;
+                        resize: vertical;
+                    "></textarea>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Next Follow-up Date (Optional):</label>
+                    <input type="date" id="next-followup-date" style="
+                        width: 100%; 
+                        padding: 12px; 
+                        border: 2px solid #e1e5e9; 
+                        border-radius: 8px; 
+                        font-size: 1rem;
+                    ">
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button id="add-followup-btn" class="btn btn-primary">Add Follow-up</button>
+                    <button id="cancel-followup-btn" class="btn btn-secondary">Cancel</button>
+                </div>
+            `;
+
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+
+            // Focus on details textarea
+            const detailsInput = modal.querySelector('#followup-details-input');
+            detailsInput.focus();
+
+            // Handle add button click
+            modal.querySelector('#add-followup-btn').addEventListener('click', async () => {
+                const followupDate = modal.querySelector('#followup-date-input').value;
+                const followupDetails = modal.querySelector('#followup-details-input').value.trim();
+                const nextFollowupDate = modal.querySelector('#next-followup-date').value || null;
+
+                if (!followupDate || !followupDetails) {
+                    showNotification('Please fill in both date and details', 'error');
+                    return;
                 }
 
-                enquiry.followup_date = followupDate;
-                renderEnquiries();
-                renderFollowups();
-                showNotification('Follow-up date updated!', 'success');
-            } catch (error) {
-                console.error('Error updating follow-up:', error);
-                showNotification('Error updating follow-up', 'error');
+                try {
+                    // Get existing follow-up details or initialize empty array
+                    const existingFollowups = enquiry.followup_details || [];
+                    
+                    // Add new follow-up entry
+                    const newFollowup = {
+                        date: followupDate,
+                        details: followupDetails,
+                        created_at: new Date().toISOString()
+                    };
+                    
+                    existingFollowups.push(newFollowup);
+
+                    // Update the enquiry
+                    const updateData = {
+                        followup_details: existingFollowups
+                    };
+
+                    // Add next follow-up date if provided
+                    if (nextFollowupDate) {
+                        updateData.followup_date = nextFollowupDate;
+                    }
+
+                    if (supabaseClient) {
+                        const { error } = await supabaseClient
+                            .from('enquiries')
+                            .update(updateData)
+                            .eq('id', id);
+
+                        if (error) throw error;
+                    }
+
+                    // Update local data
+                    enquiry.followup_details = existingFollowups;
+                    if (nextFollowupDate) {
+                        enquiry.followup_date = nextFollowupDate;
+                    }
+
+                    renderEnquiries();
+                    renderFollowups();
+                    showNotification('Follow-up added successfully!', 'success');
+                    modal.remove();
+                } catch (error) {
+                    console.error('Error adding follow-up:', error);
+                    showNotification('Error adding follow-up', 'error');
+                }
+            });
+
+            // Handle cancel button click
+            modal.querySelector('#cancel-followup-btn').addEventListener('click', () => {
+                modal.remove();
+            });
+
+            // Handle click outside modal
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+
+            // Handle Escape key
+            document.addEventListener('keydown', function escapeHandler(e) {
+                if (e.key === 'Escape') {
+                    modal.remove();
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            });
+        }
+
+        function viewFollowups(id) {
+            const enquiry = enquiries.find(e => e.id === id);
+            if (!enquiry) return;
+
+            const followups = enquiry.followup_details || [];
+
+            // Create a modal to show follow-up history
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            `;
+
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                min-width: 500px;
+                max-width: 700px;
+                max-height: 80vh;
+                overflow-y: auto;
+                text-align: left;
+            `;
+
+            let followupHistory = '';
+            
+            if (followups.length === 0) {
+                followupHistory = '<p style="text-align: center; color: #666; padding: 20px;">No follow-ups recorded yet.</p>';
+            } else {
+                followupHistory = followups
+                    .sort((a, b) => new Date(b.date) - new Date(a.date)) // Sort by date, newest first
+                    .map((followup, index) => `
+                        <div style="
+                            background: #f8f9fa;
+                            border-radius: 8px;
+                            padding: 15px;
+                            margin-bottom: 15px;
+                            border-left: 4px solid #667eea;
+                        ">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <span style="font-weight: 600; color: #667eea;">Follow-up #${followups.length - index}</span>
+                                <span style="color: #666; font-size: 0.9rem;">${formatDate(followup.date)}</span>
+                            </div>
+                            <div style="color: #333; line-height: 1.5;">
+                                ${followup.details}
+                            </div>
+                            <div style="color: #999; font-size: 0.8rem; margin-top: 10px;">
+                                Added: ${formatDate(followup.created_at)}
+                            </div>
+                        </div>
+                    `).join('');
             }
+
+            modalContent.innerHTML = `
+                <h3 style="margin-bottom: 20px; color: #333; text-align: center;">Follow-up History for ${enquiry.client_name}</h3>
+                
+                <div style="margin-bottom: 20px;">
+                    ${followupHistory}
+                </div>
+                
+                <div style="text-align: center;">
+                    <button id="close-followups-btn" class="btn btn-primary">Close</button>
+                    <button id="add-new-followup-btn" class="btn btn-secondary" style="margin-left: 10px;">Add New Follow-up</button>
+                </div>
+            `;
+
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+
+            // Handle close button click
+            modal.querySelector('#close-followups-btn').addEventListener('click', () => {
+                modal.remove();
+            });
+
+            // Handle add new follow-up button click
+            modal.querySelector('#add-new-followup-btn').addEventListener('click', () => {
+                modal.remove();
+                addFollowup(id); // Open the add follow-up modal
+            });
+
+            // Handle click outside modal
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+
+            // Handle Escape key
+            document.addEventListener('keydown', function escapeHandler(e) {
+                if (e.key === 'Escape') {
+                    modal.remove();
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            });
         }
 
         async function deleteEnquiry(id) {
