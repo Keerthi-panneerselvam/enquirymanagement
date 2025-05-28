@@ -495,8 +495,6 @@
         let enquiries = [];
         let currentTab = 'enquiries';
 
-
-
         function setupEventListeners() {
             document.getElementById('enquiry-form').addEventListener('submit', handleAddEnquiry);
         }
@@ -679,26 +677,112 @@
             const enquiry = enquiries.find(e => e.id === id);
             if (!enquiry) return;
 
-            const newStatus = prompt('Update status:', enquiry.status);
-            if (!newStatus || newStatus === enquiry.status) return;
+            // Create a modal with dropdown
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            `;
 
-            try {
-                if (supabaseClient) {
-                    const { error } = await supabaseClient
-                        .from('enquiries')
-                        .update({ status: newStatus })
-                        .eq('id', id);
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                min-width: 300px;
+                text-align: center;
+            `;
 
-                    if (error) throw error;
+            modalContent.innerHTML = `
+                <h3 style="margin-bottom: 20px; color: #333;">Update Status for ${enquiry.client_name}</h3>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Current Status: <span style="color: #667eea;">${enquiry.status}</span></label>
+                    <select id="status-select" style="
+                        width: 100%; 
+                        padding: 12px; 
+                        border: 2px solid #e1e5e9; 
+                        border-radius: 8px; 
+                        font-size: 1rem;
+                        background: white;
+                    ">
+                        <option value="new" ${enquiry.status === 'new' ? 'selected' : ''}>New</option>
+                        <option value="contacted" ${enquiry.status === 'contacted' ? 'selected' : ''}>Contacted</option>
+                        <option value="quoted" ${enquiry.status === 'quoted' ? 'selected' : ''}>Quoted</option>
+                        <option value="confirmed" ${enquiry.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
+                        <option value="completed" ${enquiry.status === 'completed' ? 'selected' : ''}>Completed</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button id="update-btn" class="btn btn-primary">Update Status</button>
+                    <button id="cancel-btn" class="btn btn-secondary">Cancel</button>
+                </div>
+            `;
+
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+
+            // Focus on select
+            const statusSelect = modal.querySelector('#status-select');
+            statusSelect.focus();
+
+            // Handle update button click
+            modal.querySelector('#update-btn').addEventListener('click', async () => {
+                const newStatus = statusSelect.value;
+                
+                if (newStatus === enquiry.status) {
+                    modal.remove();
+                    return;
                 }
 
-                enquiry.status = newStatus;
-                renderEnquiries();
-                showNotification('Status updated successfully!', 'success');
-            } catch (error) {
-                console.error('Error updating status:', error);
-                showNotification('Error updating status', 'error');
-            }
+                try {
+                    if (supabaseClient) {
+                        const { error } = await supabaseClient
+                            .from('enquiries')
+                            .update({ status: newStatus })
+                            .eq('id', id);
+
+                        if (error) throw error;
+                    }
+
+                    enquiry.status = newStatus;
+                    renderEnquiries();
+                    showNotification('Status updated successfully!', 'success');
+                    modal.remove();
+                } catch (error) {
+                    console.error('Error updating status:', error);
+                    showNotification('Error updating status', 'error');
+                    modal.remove();
+                }
+            });
+
+            // Handle cancel button click
+            modal.querySelector('#cancel-btn').addEventListener('click', () => {
+                modal.remove();
+            });
+
+            // Handle click outside modal
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+
+            // Handle Escape key
+            document.addEventListener('keydown', function escapeHandler(e) {
+                if (e.key === 'Escape') {
+                    modal.remove();
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            });
         }
 
         async function addFollowup(id) {
@@ -709,7 +793,7 @@
             if (!followupDate) return;
 
             try {
-                if (supabaseClient && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+                if (supabaseClient) {
                     const { error } = await supabaseClient
                         .from('enquiries')
                         .update({ followup_date: followupDate })
@@ -732,7 +816,7 @@
             if (!confirm('Are you sure you want to delete this enquiry?')) return;
 
             try {
-                if (supabaseClient && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+                if (supabaseClient) {
                     const { error } = await supabaseClient
                         .from('enquiries')
                         .delete()
@@ -742,9 +826,7 @@
                 }
 
                 enquiries = enquiries.filter(e => e.id !== id);
-                if (supabaseClient) {
-                    demoEnquiries = demoEnquiries.filter(e => e.id !== id);
-                }
+                demoEnquiries = demoEnquiries.filter(e => e.id !== id);
                 
                 renderEnquiries();
                 renderFollowups();
