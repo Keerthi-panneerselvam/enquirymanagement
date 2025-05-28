@@ -23,3 +23,16 @@ Your wedding decor business now has a professional tool to:
 If you need any additional features in the future (like email integration, photo uploads, quotation management, etc.), feel free to ask. The system is designed to be easily expandable!
 
 Happy wedding planning! 💐✨
+
+
+Great! Is there anything else you'd like me to help you with regarding the Wedding Decor Manager application or the notification system? 
+
+For example, I could help you with:
+- Testing the notification system functionality
+- Adding more features to the application
+- Customizing the UI further
+- Setting up the database properly
+- Adding more notification types
+- Or any other improvements you have in mind
+
+Just let me know what you'd like to work on next!
